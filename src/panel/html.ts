@@ -154,6 +154,14 @@ export function getStringboardHtml(
             content: '—';
             color: var(--vscode-descriptionForeground);
           }
+          table.catalog-table .cell.missing:not(:focus) {
+            background: var(--vscode-editorWarning-background, rgba(245, 158, 11, 0.1));
+          }
+          table.catalog-table .cell.missing:empty::before {
+            content: 'missing';
+            font-style: italic;
+            color: var(--vscode-descriptionForeground);
+          }
           table.catalog-table .cell:focus {
             outline: 1px solid var(--vscode-focusBorder);
             outline-offset: -1px;
@@ -177,8 +185,20 @@ export function getStringboardHtml(
               cell.addEventListener('focus', function () {
                 original = cell.textContent || '';
               });
+              cell.addEventListener('input', function () {
+                if ((cell.textContent || '') === '') {
+                  cell.classList.add('missing');
+                } else {
+                  cell.classList.remove('missing');
+                }
+              });
               cell.addEventListener('blur', function () {
                 const value = cell.textContent || '';
+                if (value === '') {
+                  cell.classList.add('missing');
+                } else {
+                  cell.classList.remove('missing');
+                }
                 if (value === original) {
                   return;
                 }
@@ -239,7 +259,8 @@ function renderCatalogRow(row: CatalogRow, locales: string[]): string {
 	const keyAttr = escapeHtml(row.key);
 	const translations = locales.map(locale => {
 		const value = row.translations.get(locale) ?? '';
-		return `<td class="col-translation"><div class="cell" contenteditable="true" spellcheck="false" data-key="${keyAttr}" data-locale="${escapeHtml(locale)}">${escapeHtml(value)}</div></td>`;
+		const cellClass = value === '' ? 'cell missing' : 'cell';
+		return `<td class="col-translation"><div class="${cellClass}" contenteditable="true" spellcheck="false" data-key="${keyAttr}" data-locale="${escapeHtml(locale)}">${escapeHtml(value)}</div></td>`;
 	}).join('');
 
 	return /* html */ `
