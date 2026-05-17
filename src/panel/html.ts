@@ -186,15 +186,14 @@ export function getStringboardHtml(
                 original = cell.textContent || '';
               });
               cell.addEventListener('input', function () {
-                if ((cell.textContent || '') === '') {
-                  cell.classList.add('missing');
-                } else {
+                if ((cell.textContent || '') !== '') {
                   cell.classList.remove('missing');
                 }
               });
               cell.addEventListener('blur', function () {
                 const value = cell.textContent || '';
                 if (value === '') {
+                  cell.innerHTML = '';
                   cell.classList.add('missing');
                 } else {
                   cell.classList.remove('missing');
