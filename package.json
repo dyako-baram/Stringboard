@@ -2,7 +2,7 @@
   "name": "stringboard",
   "displayName": "Stringboard",
   "description": "Visual spreadsheet editor for Flutter translations — bring Xcode's String Catalog experience to Flutter.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "MohammedRzgar",
   "icon": "media/icon.png",
   "license": "MIT",
