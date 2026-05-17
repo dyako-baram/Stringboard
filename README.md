@@ -1,71 +1,73 @@
-# Stringboard README
+# Stringboard
 
-This is the README for your extension "Stringboard". After writing up a brief description, we recommend including the following sections.
+**A spreadsheet for your Flutter translations — right inside VS Code.**
 
-## Features
+Stringboard brings Xcode's String Catalog experience to Flutter. Open any Flutter project, see all of your `.arb` files as a single editable grid, and fix translations inline. No new file format, no runtime dependency, no migration.
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+![Stringboard screenshot](media/screenshot.png)
 
 ---
 
-## Following extension guidelines
+## Features
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+- **Auto-detects** your `.arb` files in `lib/l10n/` (and common alternates like `assets/i18n/`, `translations/`)
+- **Unified grid view** — rows are string keys, columns are languages
+- **Inline editing** — click a cell, type, tab to the next
+- **Missing-translation highlighting** — empty cells get an amber tint and an italic "missing" hint
+- **Theme-aware** — every color is a VS Code CSS variable, so light/dark/high-contrast all just work
+- **Zero dependencies in your project** — Stringboard is an editor, not a package
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+## Quick start
 
-## Working with Markdown
+1. Install **Stringboard** from the VS Code Marketplace.
+2. Open a Flutter project that has `.arb` files (e.g. `lib/l10n/app_en.arb`, `lib/l10n/app_ar.arb`).
+3. Open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and run **Stringboard: Open editor**.
+4. Edit cells. Changes persist automatically.
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+That's the whole onboarding. No configuration, no setup wizard.
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+## Why Stringboard
 
-## For more information
+There are a handful of ARB-related extensions on the marketplace, but each of them stops short. Stringboard is the only one that combines:
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+| | Stringboard | `flutter_intl` | ARB Manager | Flutter ARB Editor |
+|---|:-:|:-:|:-:|:-:|
+| Auto-detects ARB files | ✓ | ✓ | ✗ | ✗ |
+| Cross-locale grid view | ✓ | ✗ | partial | ✗ |
+| Inline editing, saves to disk | ✓ | ✗ | ✓ | ✓ |
+| Missing-translation highlighting | ✓ | ✗ | ✗ | ✗ |
+| Theme-aware UI | ✓ | n/a | ✗ | partial |
+| Zero runtime dependency in your app | ✓ | ✗ | ✓ | ✓ |
 
-**Enjoy!**
+If you've ever used Xcode 15's String Catalog editor, that's the experience Stringboard is bringing to Flutter.
+
+## Roadmap
+
+v0.1 (this release) is intentionally focused on ARB editing. Likely candidates for v0.2 and beyond:
+
+- EasyLocalization JSON support
+- Search/filter bar
+- "Add language" button to scaffold a new locale
+- Right-click **Edit in Stringboard** on `.arb` files in the explorer
+- CSV import/export for sending strings to translators
+- Richer placeholder / plural editing
+- Scan Dart files for hardcoded strings and one-click extract
+
+Priorities will follow real user feedback. Open an issue if there's something you want.
+
+## Contributing
+
+Bug reports, feature requests, and PRs are all welcome at [github.com/Mhamad-Rzgar/Stringboard](https://github.com/Mhamad-Rzgar/Stringboard).
+
+To run from source:
+
+```bash
+git clone https://github.com/Mhamad-Rzgar/Stringboard.git
+cd Stringboard
+npm install
+# Open in VS Code, press F5 to launch the Extension Development Host
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE).

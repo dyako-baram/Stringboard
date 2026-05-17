@@ -2,12 +2,31 @@
   "name": "stringboard",
   "displayName": "Stringboard",
   "description": "Visual spreadsheet editor for Flutter translations — bring Xcode's String Catalog experience to Flutter.",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "publisher": "mhamad-rzgar",
+  "icon": "media/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mhamad-Rzgar/Stringboard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Mhamad-Rzgar/Stringboard/issues"
+  },
+  "homepage": "https://github.com/Mhamad-Rzgar/Stringboard#readme",
+  "keywords": [
+    "flutter",
+    "localization",
+    "i18n",
+    "arb",
+    "translation"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Visualization"
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",
