@@ -170,6 +170,29 @@ export function getStringboardHtml(
           table.catalog-table .cell:focus:empty::before {
             content: '';
           }
+          .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+          }
+          .header-row .subtitle {
+            flex: 1;
+          }
+          .add-locale-btn {
+            font-family: var(--vscode-font-family);
+            font-size: 12px;
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            cursor: pointer;
+            white-space: nowrap;
+          }
+          .add-locale-btn:hover {
+            background: var(--vscode-button-hoverBackground);
+          }
         </style>
       </head>
       <body>
@@ -179,6 +202,14 @@ export function getStringboardHtml(
         <script>
           (function () {
             const vscode = acquireVsCodeApi();
+
+            const addBtn = document.getElementById('add-locale-btn');
+            if (addBtn) {
+              addBtn.addEventListener('click', function () {
+                vscode.postMessage({ type: 'add-locale' });
+              });
+            }
+
             const cells = document.querySelectorAll('.cell[contenteditable="true"]');
             cells.forEach(function (cell) {
               let original = cell.textContent || '';
@@ -237,7 +268,10 @@ function renderCatalog(detectedFiles: DetectedArbFile[], catalog: Catalog): stri
 	const rows = catalog.rows.map(row => renderCatalogRow(row, catalog.locales)).join('');
 
 	return /* html */ `
-        <p class="subtitle">${summary}</p>
+        <div class="header-row">
+          <p class="subtitle">${summary}</p>
+          <button class="add-locale-btn" id="add-locale-btn">+ Add Locale</button>
+        </div>
         <div class="catalog">
           <table class="catalog-table">
             <thead>
@@ -283,7 +317,10 @@ function renderFileList(files: DetectedArbFile[]): string {
 	const rows = ordered.map(renderFileRow).join('');
 
 	return /* html */ `
-        <p class="subtitle">${escapeHtml(summary)}</p>
+        <div class="header-row">
+          <p class="subtitle">${escapeHtml(summary)}</p>
+          <button class="add-locale-btn" id="add-locale-btn">+ Add Locale</button>
+        </div>
         <div class="file-list">${rows}</div>
     `;
 }

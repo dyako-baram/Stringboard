@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { detectArbFiles, type DetectedArbFile } from '../arb/detector';
 import { parseArb, type ArbFile } from '../arb/parser';
-import { writeArbFile } from '../arb/writer';
+import { writeArbFile, createArbFile } from '../arb/writer';
 import { buildCatalog, type Catalog } from '../model/catalog';
 import { getStringboardHtml } from './html';
 
@@ -22,6 +22,8 @@ export default class StringboardPanel {
 	private disposables: vscode.Disposable[] = [];
 	private readonly localeFiles: Map<string, LocaleFile>;
 	private readonly pendingSaves = new Map<string, ReturnType<typeof setTimeout>>();
+	private detectedFiles: DetectedArbFile[];
+	private catalog: Catalog | undefined;
 
 	public static async createOrShow(_extensionUri: vscode.Uri): Promise<void> {
 		const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
@@ -55,12 +57,16 @@ export default class StringboardPanel {
 	) {
 		this.panel = panel;
 		this.localeFiles = localeFiles;
+		this.detectedFiles = detectedFiles;
+		this.catalog = catalog;
 		this.panel.webview.html = getStringboardHtml(detectedFiles, catalog);
 
 		this.panel.webview.onDidReceiveMessage(
-			(message: { type: string; payload?: unknown }) => {
+			async (message: { type: string; payload?: unknown }) => {
 				if (message.type === 'cell-changed') {
 					this.handleCellChanged(message.payload as CellChangedPayload);
+				} else if (message.type === 'add-locale') {
+					await this.handleAddLocale();
 				}
 			},
 			null,
@@ -77,6 +83,62 @@ export default class StringboardPanel {
 		}
 		file.arbFile.entries.set(payload.key, payload.value);
 		this.scheduleSave(payload.locale);
+	}
+
+	private async handleAddLocale(): Promise<void> {
+		const templateLocale = this.catalog?.templateLocale;
+		const templateFile = templateLocale ? this.localeFiles.get(templateLocale) : undefined;
+		if (!templateFile) {
+			void vscode.window.showErrorMessage('Stringboard: no template ARB file found. Add an English ARB file first.');
+			return;
+		}
+
+		const locale = await vscode.window.showInputBox({
+			title: 'Add Locale',
+			prompt: 'Enter a locale code (e.g., fr, es, de, ja, pt-BR)',
+			placeHolder: 'fr',
+			validateInput: (value: string) => {
+				if (!value) {
+					return 'Locale code is required.';
+				}
+				if (!/^[a-zA-Z]+(?:[_-][a-zA-Z]+)?$/.test(value)) {
+					return 'Invalid locale code. Use only letters, hyphens, and underscores (e.g., en, pt-BR, zh_CN).';
+				}
+				if (this.localeFiles.has(value)) {
+					return `Locale '${value}' already exists.`;
+				}
+				return null;
+			},
+			ignoreFocusOut: true,
+		});
+
+		if (!locale) {
+			return;
+		}
+
+		const templateUri = templateFile.uri;
+		const templateDir = templateUri.path.substring(0, templateUri.path.lastIndexOf('/'));
+		const templateBasename = templateUri.path.split('/').pop() ?? 'app_en.arb';
+		const newBasename = templateBasename.replace(/_([a-zA-Z]+(?:[_-][a-zA-Z]+)?)\.arb$/, `_${locale}.arb`);
+		const newUri = templateUri.with({ path: `${templateDir}/${newBasename}` });
+
+		try {
+			await createArbFile(newUri, locale, templateFile.arbFile.entries, templateFile.arbFile.metadata);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			void vscode.window.showErrorMessage(`Stringboard: failed to create locale file: ${message}`);
+			return;
+		}
+
+		const detectedFiles = await detectArbFiles();
+		const result = await loadCatalog(detectedFiles);
+		this.detectedFiles = detectedFiles;
+		this.catalog = result.catalog;
+		this.localeFiles.clear();
+		for (const [key, value] of result.localeFiles) {
+			this.localeFiles.set(key, value);
+		}
+		this.panel.webview.html = getStringboardHtml(this.detectedFiles, this.catalog);
 	}
 
 	private scheduleSave(locale: string): void {

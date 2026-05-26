@@ -37,6 +37,28 @@ export async function writeArbFile(
 	await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(finalText));
 }
 
+export async function createArbFile(
+	uri: vscode.Uri,
+	locale: string,
+	templateEntries: Iterable<[string, string]>,
+	templateMetadata: Map<string, ArbMetadata>,
+): Promise<void> {
+	const content: Record<string, unknown> = {
+		'@@locale': locale,
+	};
+
+	for (const [key] of templateEntries) {
+		content[key] = '';
+		const meta = templateMetadata.get(key);
+		if (meta) {
+			content[`@${key}`] = meta;
+		}
+	}
+
+	const serialized = JSON.stringify(content, null, 2) + '\n';
+	await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(serialized));
+}
+
 function detectIndent(text: string): number | string {
 	const match = text.match(/\n([ \t]+)"/);
 	if (!match) {
