@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import type { DetectedArbFile } from '../arb/detector';
 import type { Catalog, CatalogRow } from '../model/catalog';
-
 export function getStringboardHtml(
 	detectedFiles: DetectedArbFile[],
 	catalog: Catalog | undefined,
@@ -193,6 +192,20 @@ export function getStringboardHtml(
           .add-locale-btn:hover {
             background: var(--vscode-button-hoverBackground);
           }
+          .init-btn {
+            font-family: var(--vscode-font-family);
+            font-size: 13px;
+            padding: 6px 16px;
+            border: none;
+            border-radius: 4px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            cursor: pointer;
+            margin-top: 12px;
+          }
+          .init-btn:hover {
+            background: var(--vscode-button-hoverBackground);
+          }
         </style>
       </head>
       <body>
@@ -209,7 +222,24 @@ export function getStringboardHtml(
                 vscode.postMessage({ type: 'add-locale' });
               });
             }
-
+            const addKeyBtn = document.getElementById('add-key-btn');
+            if (addKeyBtn) {
+              addKeyBtn.addEventListener('click', function () {
+                vscode.postMessage({ type: 'add-key' });
+              });
+            }
+            const createBtn = document.getElementById('create-template-btn');
+            if (createBtn) {
+              createBtn.addEventListener('click', function () {
+                vscode.postMessage({ type: 'create-template' });
+              });
+            }
+            const initBtn = document.getElementById('init-template-btn');
+            if (initBtn) {
+              initBtn.addEventListener('click', function () {
+                vscode.postMessage({ type: 'initialize-template' });
+              });
+            }
             const cells = document.querySelectorAll('.cell[contenteditable="true"]');
             cells.forEach(function (cell) {
               let original = cell.textContent || '';
@@ -270,9 +300,10 @@ function renderCatalog(detectedFiles: DetectedArbFile[], catalog: Catalog): stri
 	return /* html */ `
         <div class="header-row">
           <p class="subtitle">${summary}</p>
+          <button class="add-locale-btn" id="add-key-btn">+ Add Key</button>
           <button class="add-locale-btn" id="add-locale-btn">+ Add Locale</button>
         </div>
-        <div class="catalog">
+		<div class="catalog">
           <table class="catalog-table">
             <thead>
               <tr>
@@ -316,11 +347,14 @@ function renderFileList(files: DetectedArbFile[]): string {
 	const summary = `Found ${files.length} ARB file${files.length === 1 ? '' : 's'}.`;
 	const rows = ordered.map(renderFileRow).join('');
 
+	const hasTemplate = files.some(f => f.isTemplate);
+
 	return /* html */ `
         <div class="header-row">
           <p class="subtitle">${escapeHtml(summary)}</p>
           <button class="add-locale-btn" id="add-locale-btn">+ Add Locale</button>
         </div>
+        ${hasTemplate ? '<div style="margin-top:8px"><button class="init-btn" id="init-template-btn">Initialize Template with starter keys</button></div>' : ''}
         <div class="file-list">${rows}</div>
     `;
 }
@@ -354,7 +388,8 @@ function renderEmptyState(): string {
             <li><code>**/assets/i18n/</code></li>
             <li><code>**/translations/</code></li>
           </ul>
-          <p>Open a Flutter project containing translation files and re-run <code>Stringboard: Open editor</code>.</p>
+          <p>Create a new ARB file with default content to get started:</p>
+          <button class="init-btn" id="create-template-btn">Initialize ARB File</button>
         </div>
     `;
 }

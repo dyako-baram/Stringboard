@@ -37,6 +37,34 @@ export async function writeArbFile(
 	await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(finalText));
 }
 
+const STARTER_KEYS: { key: string; description: string }[] = [
+	{ key: 'app_title', description: 'The title of the application' },
+	{ key: 'welcome_message', description: 'Welcome message shown on the home screen' },
+	{ key: 'settings_title', description: 'Title for the settings screen' },
+];
+
+export async function initializeArbFile(
+	uri: vscode.Uri,
+	locale: string,
+	isTemplate: boolean,
+): Promise<void> {
+	const content: Record<string, unknown> = {
+		'@@locale': locale,
+	};
+
+	const meta: Record<string, { description: string }> = {};
+
+	for (const { key, description } of STARTER_KEYS) {
+		content[key] = isTemplate ? key : '';
+		meta[`@${key}`] = { description };
+	}
+
+	Object.assign(content, meta);
+
+	const serialized = JSON.stringify(content, null, 2) + '\n';
+	await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(serialized));
+}
+
 export async function createArbFile(
 	uri: vscode.Uri,
 	locale: string,

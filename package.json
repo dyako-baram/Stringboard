@@ -36,7 +36,25 @@
         "title": "Open editor",
         "category": "Stringboard"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "stringboard",
+          "title": "Stringboard",
+          "icon": "media/stringboard.svg"
+        }
+      ]
+    },
+    "views": {
+      "stringboard": [
+        {
+          "type": "webview",
+          "id": "stringboard.sidebar",
+          "name": "Stringboard"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

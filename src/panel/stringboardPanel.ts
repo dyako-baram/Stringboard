@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import { detectArbFiles, type DetectedArbFile } from '../arb/detector';
-import { parseArb, type ArbFile } from '../arb/parser';
-import { writeArbFile, createArbFile } from '../arb/writer';
-import { buildCatalog, type Catalog } from '../model/catalog';
+import { writeArbFile, createArbFile, initializeArbFile } from '../arb/writer';
+import { loadCatalog, type LocaleFile } from '../arb/loader';
+import { type Catalog } from '../model/catalog';
 import { getStringboardHtml } from './html';
+import { getSidebarInstance } from '../view/sidebarViewProvider';
 
-type LocaleFile = { uri: vscode.Uri; arbFile: ArbFile };
 
 type CellChangedPayload = {
 	key: string;
@@ -24,6 +24,12 @@ export default class StringboardPanel {
 	private readonly pendingSaves = new Map<string, ReturnType<typeof setTimeout>>();
 	private detectedFiles: DetectedArbFile[];
 	private catalog: Catalog | undefined;
+
+	public static refreshIfOpen(): void {
+		if (StringboardPanel.currentPanel) {
+			void StringboardPanel.currentPanel.refreshCatalog();
+		}
+	}
 
 	public static async createOrShow(_extensionUri: vscode.Uri): Promise<void> {
 		const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
@@ -65,8 +71,14 @@ export default class StringboardPanel {
 			async (message: { type: string; payload?: unknown }) => {
 				if (message.type === 'cell-changed') {
 					this.handleCellChanged(message.payload as CellChangedPayload);
+				} else if (message.type === 'add-key') {
+					await this.handleAddKey();
 				} else if (message.type === 'add-locale') {
 					await this.handleAddLocale();
+				} else if (message.type === 'create-template') {
+					await this.handleCreateTemplate();
+				} else if (message.type === 'initialize-template') {
+					await this.handleInitializeTemplate();
 				}
 			},
 			null,
@@ -83,6 +95,54 @@ export default class StringboardPanel {
 		}
 		file.arbFile.entries.set(payload.key, payload.value);
 		this.scheduleSave(payload.locale);
+	}
+
+	private async handleAddKey(): Promise<void> {
+		const templateLocale = this.catalog?.templateLocale;
+		const templateFile = templateLocale ? this.localeFiles.get(templateLocale) : undefined;
+		if (!templateFile) {
+			void vscode.window.showErrorMessage('Stringboard: no template ARB file found.');
+			return;
+		}
+
+		const keyName = await vscode.window.showInputBox({
+			title: 'Add Translation Key',
+			prompt: 'Enter a new translation key (e.g., settings.title)',
+			placeHolder: 'settings.title',
+			validateInput: (value: string) => {
+				if (!value) {return 'Key name is required.';}
+				if (!/^[a-zA-Z_][\w.]*$/.test(value)) {return 'Invalid key. Use letters, numbers, dots, and underscores.';}
+				if (this.catalog?.rows.some(r => r.key === value)) {return `Key '${value}' already exists.`;}
+				return null;
+			},
+			ignoreFocusOut: true,
+		});
+
+		if (!keyName) {return;}
+
+		const description = await vscode.window.showInputBox({
+			title: 'Add Translation Key',
+			prompt: 'Optional description for this key',
+			placeHolder: 'Description of what this key is used for',
+			ignoreFocusOut: true,
+		});
+
+		templateFile.arbFile.entries.set(keyName, keyName);
+		if (description) {
+			const meta = templateFile.arbFile.metadata.get(keyName) ?? {};
+			meta.description = description;
+			templateFile.arbFile.metadata.set(keyName, meta);
+		}
+
+		try {
+			await writeArbFile(templateFile.uri, templateFile.arbFile.entries, templateFile.arbFile.metadata, templateFile.arbFile.locale);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			void vscode.window.showErrorMessage(`Stringboard: failed to save: ${message}`);
+			return;
+		}
+
+		await this.refreshCatalog();
 	}
 
 	private async handleAddLocale(): Promise<void> {
@@ -130,6 +190,82 @@ export default class StringboardPanel {
 			return;
 		}
 
+		await this.refreshCatalog();
+	}
+
+	private async handleCreateTemplate(): Promise<void> {
+		const locale = await vscode.window.showInputBox({
+			title: 'Initialize ARB File',
+			prompt: 'Enter the locale code (e.g., en, fr, es)',
+			placeHolder: 'en',
+			validateInput: (value: string) => {
+				if (!value) {return 'Locale code is required.';}
+				if (!/^[a-zA-Z]+(?:[_-][a-zA-Z]+)?$/.test(value)) {return 'Invalid locale code.';}
+				return null;
+			},
+			ignoreFocusOut: true,
+		});
+		if (!locale) {return;}
+
+		const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+		const l10nDir = workspaceUri ? vscode.Uri.joinPath(workspaceUri, 'lib', 'l10n') : undefined;
+		if (!l10nDir) {
+			void vscode.window.showErrorMessage('Stringboard: no workspace folder open.');
+			return;
+		}
+
+		try {
+			await vscode.workspace.fs.createDirectory(l10nDir);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			void vscode.window.showErrorMessage(`Stringboard: failed to create lib/l10n/: ${message}`);
+			return;
+		}
+
+		const uri = vscode.Uri.joinPath(l10nDir, `app_${locale}.arb`);
+		try {
+			await initializeArbFile(uri, locale, true);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			void vscode.window.showErrorMessage(`Stringboard: failed to create file: ${message}`);
+			return;
+		}
+
+		await this.refreshCatalog();
+	}
+
+	private async handleInitializeTemplate(): Promise<void> {
+		const templateDetected = this.detectedFiles.find(f => f.isTemplate);
+		if (!templateDetected) {
+			if (this.detectedFiles.length === 0) {
+				void vscode.window.showErrorMessage('Stringboard: no ARB files found to initialize.');
+				return;
+			}
+			const file = this.detectedFiles[0];
+			try {
+				await initializeArbFile(file.uri, file.locale, true);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				void vscode.window.showErrorMessage(`Stringboard: failed to initialize: ${message}`);
+				return;
+			}
+			await this.refreshCatalog();
+			return;
+		}
+
+		const locale = templateDetected.locale;
+		try {
+			await initializeArbFile(templateDetected.uri, locale, true);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			void vscode.window.showErrorMessage(`Stringboard: failed to initialize: ${message}`);
+			return;
+		}
+
+		await this.refreshCatalog();
+	}
+
+	public async refreshCatalog(): Promise<void> {
 		const detectedFiles = await detectArbFiles();
 		const result = await loadCatalog(detectedFiles);
 		this.detectedFiles = detectedFiles;
@@ -139,6 +275,7 @@ export default class StringboardPanel {
 			this.localeFiles.set(key, value);
 		}
 		this.panel.webview.html = getStringboardHtml(this.detectedFiles, this.catalog);
+		getSidebarInstance()?.refresh();
 	}
 
 	private scheduleSave(locale: string): void {
@@ -177,35 +314,4 @@ export default class StringboardPanel {
 			this.disposables.pop()?.dispose();
 		}
 	}
-}
-
-async function loadCatalog(detectedFiles: DetectedArbFile[]): Promise<{
-	catalog: Catalog | undefined;
-	localeFiles: Map<string, LocaleFile>;
-}> {
-	const localeFiles = new Map<string, LocaleFile>();
-	if (detectedFiles.length === 0) {
-		return { catalog: undefined, localeFiles };
-	}
-
-	const arbFiles: ArbFile[] = [];
-	for (const detected of detectedFiles) {
-		try {
-			const arbFile = await parseArb(detected.uri);
-			arbFiles.push(arbFile);
-			localeFiles.set(arbFile.locale, { uri: detected.uri, arbFile });
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			console.error(`Stringboard: failed to parse ${detected.uri.fsPath}: ${message}`);
-		}
-	}
-
-	if (arbFiles.length === 0) {
-		return { catalog: undefined, localeFiles };
-	}
-
-	const templateDetected = detectedFiles.find(f => f.isTemplate);
-	const templateLocale = templateDetected?.locale ?? arbFiles[0].locale;
-
-	return { catalog: buildCatalog(arbFiles, templateLocale), localeFiles };
 }
